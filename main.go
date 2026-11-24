@@ -86,7 +86,7 @@ func hint(userNumber, secretNumber int) {
 }
 
 func playGame(scanner *bufio.Scanner) {
-	maxNumber, maxAttempts := choise(scanner)
+	maxNumber, maxAttempts := chooseDifficulty(scanner)
 	secretNumber := generateNumber(maxNumber)
 	fmt.Println("Игра 'Угадай число' - от 1 до", maxNumber, "началась!")
 	fmt.Println("Угадайте число за", maxAttempts, "попыток!")
