@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -103,7 +104,7 @@ func playGame(scanner *bufio.Scanner) {
 			color.Green("Вы угадали!🙌")
 			color.Green("Игра закончена!")
 			history(attempts)
-			saveResult(GameResult{Result: true, Date: time.Now().Format("2006-01-02 15:04:05"), Attempts: len(attempts)})
+			saveAndReport(GameResult{Result: true, Date: time.Now().Format("2006-01-02 15:04:05"), Attempts: len(attempts)})
 			return
 		}
 		hint(userNumber, secretNumber)
@@ -112,7 +113,13 @@ func playGame(scanner *bufio.Scanner) {
 	color.Red("Вы проиграли!😢")
 	color.Red("Секретное число было: %d", secretNumber)
 	history(attempts)
-	saveResult(GameResult{Result: false, Date: time.Now().Format("2006-01-02 15:04:05"), Attempts: len(attempts)})
+	saveAndReport(GameResult{Result: false, Date: time.Now().Format("2006-01-02 15:04:05"), Attempts: len(attempts)})
+}
+
+func saveAndReport(r GameResult) {
+	if err := saveResult(r); err != nil {
+		color.Red("Не удалось сохранить результат: %v", err)
+	}
 }
 
 func main() {
@@ -134,7 +141,37 @@ func history(attempts []int) {
 	}
 }
 
-func saveResult(r GameResult) {
-	data, _ := json.Marshal(r)
-	os.WriteFile("results.json", data, 0644)
+const resultsFile = "results.json"
+
+func loadResults() ([]GameResult, error) {
+	data, err := os.ReadFile(resultsFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return []GameResult{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("чтение %s: %w", resultsFile, err)
+	}
+
+	var results []GameResult
+	if err := json.Unmarshal(data, &results); err != nil {
+		return nil, fmt.Errorf("разбор %s: %w", resultsFile, err)
+	}
+	return results, nil
+}
+
+func saveResult(r GameResult) error {
+	results, err := loadResults()
+	if err != nil {
+		return err
+	}
+	results = append(results, r)
+
+	data, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		return fmt.Errorf("кодирование результатов: %w", err)
+	}
+	if err := os.WriteFile(resultsFile, data, 0644); err != nil {
+		return fmt.Errorf("запись %s: %w", resultsFile, err)
+	}
+	return nil
 }
